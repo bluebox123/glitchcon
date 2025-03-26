@@ -260,15 +260,15 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Profile</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Profile</h1>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
             >
               {isEditing ? 'Cancel' : 'Edit Profile'}
             </button>
@@ -289,7 +289,7 @@ const Profile = () => {
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal"
                       required
                     />
                   </div>
@@ -299,7 +299,7 @@ const Profile = () => {
                       value={formData.bio}
                       onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                       rows="4"
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal text-base leading-relaxed"
                     />
                   </div>
                   <div>
@@ -308,13 +308,13 @@ const Profile = () => {
                       type="url"
                       value={formData.avatar_url}
                       onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal"
                       placeholder="https://example.com/avatar.jpg"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
                   >
                     Save Changes
                   </button>
@@ -330,25 +330,25 @@ const Profile = () => {
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
-                        <span className="text-2xl text-white">
+                        <span className="text-2xl text-white font-medium">
                           {profile.username.charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{profile.username}</h3>
-                      <p className="text-gray-600 dark:text-gray-400">{profile.email}</p>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">{profile.username}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 font-normal">{profile.email}</p>
                     </div>
                   </div>
                   {profile.bio && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Bio</h4>
-                      <p className="mt-1 text-gray-600 dark:text-gray-400">{profile.bio}</p>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Bio</h4>
+                      <p className="mt-1 text-gray-600 dark:text-gray-400 font-normal leading-relaxed">{profile.bio}</p>
                     </div>
                   )}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</h4>
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Member Since</h4>
+                    <p className="mt-1 text-gray-600 dark:text-gray-400 font-normal">
                       {new Date(profile.created_at).toLocaleDateString('en-US', {
                         month: 'long',
                         day: 'numeric',
@@ -372,7 +372,7 @@ const Profile = () => {
                       activeTab === 'posts'
                         ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium tracking-wide text-sm`}
                   >
                     My Posts
                   </button>
@@ -382,7 +382,7 @@ const Profile = () => {
                       activeTab === 'bookmarks'
                         ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium tracking-wide text-sm`}
                   >
                     Bookmarks
                   </button>
@@ -392,7 +392,7 @@ const Profile = () => {
                       activeTab === 'subscriptions'
                         ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium tracking-wide text-sm`}
                   >
                     Subscriptions
                   </button>
@@ -402,7 +402,7 @@ const Profile = () => {
                       activeTab === 'subscribers'
                         ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium tracking-wide text-sm`}
                   >
                     Subscribers
                   </button>
@@ -421,14 +421,14 @@ const Profile = () => {
                     {/* Random gradient background */}
                     <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                     <div className="p-6">
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 font-light">
                         {new Date(post.created_at).toLocaleDateString('en-US', {
                           month: 'long',
                           day: 'numeric',
                           year: 'numeric'
                         })}
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 tracking-tight line-clamp-2">
                         {post.title}
                       </h3>
                     </div>
@@ -436,10 +436,10 @@ const Profile = () => {
                 ))}
                 {userPosts.length === 0 && (
                   <div className="col-span-2 text-center py-12">
-                    <p className="text-gray-600 dark:text-gray-400">No posts yet</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-normal">No posts yet</p>
                     <Link
                       to="/create-post"
-                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
                     >
                       Create Your First Post
                     </Link>
@@ -456,17 +456,17 @@ const Profile = () => {
                   >
                     <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                     <div className="p-6">
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 font-light">
                         {new Date(post.created_at).toLocaleDateString('en-US', {
                           month: 'long',
                           day: 'numeric',
                           year: 'numeric'
                         })}
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 tracking-tight line-clamp-2">
                         {post.title}
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
+                      <p className="text-gray-600 dark:text-gray-300 line-clamp-3 font-normal leading-relaxed">
                         {post.content}
                       </p>
                     </div>
@@ -474,10 +474,10 @@ const Profile = () => {
                 ))}
                 {bookmarkedPosts.length === 0 && (
                   <div className="col-span-2 text-center py-12">
-                    <p className="text-gray-600 dark:text-gray-400">No bookmarked posts yet</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-normal">No bookmarked posts yet</p>
                     <Link
                       to="/"
-                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
                     >
                       Browse Posts
                     </Link>
@@ -489,7 +489,7 @@ const Profile = () => {
                 {subscriptions.map((creator) => (
                   <div
                     key={creator.id}
-                    className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                    className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -501,31 +501,42 @@ const Profile = () => {
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
-                            {creator.username.charAt(0).toUpperCase()}
+                            <span className="font-medium">{creator.username.charAt(0).toUpperCase()}</span>
                           </div>
                         )}
                         <div>
-                          <h3 className="font-medium text-gray-800">
+                          <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight">
                             {creator.username}
                           </h3>
                         </div>
                       </div>
                       <button
                         onClick={() => handleUnsubscribe(creator.id)}
-                        className="px-3 py-1 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-full border border-red-200 transition-colors"
+                        className="px-3 py-1 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-full border border-red-200 transition-colors font-medium"
                       >
                         Unsubscribe
                       </button>
                     </div>
                   </div>
                 ))}
+                {subscriptions.length === 0 && (
+                  <div className="col-span-3 text-center py-12">
+                    <p className="text-gray-600 dark:text-gray-400 font-normal">You haven't subscribed to any creators yet</p>
+                    <Link
+                      to="/"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
+                    >
+                      Discover Creators
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {subscribers.map((subscriber) => (
                   <div
                     key={subscriber.id}
-                    className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                    className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
                   >
                     <div className="flex items-center">
                       {subscriber.avatar_url ? (
@@ -536,17 +547,25 @@ const Profile = () => {
                         />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
-                          {subscriber.username.charAt(0).toUpperCase()}
+                          <span className="font-medium">{subscriber.username.charAt(0).toUpperCase()}</span>
                         </div>
                       )}
                       <div>
-                        <h3 className="font-medium text-gray-800">
+                        <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight">
                           {subscriber.username}
                         </h3>
                       </div>
                     </div>
                   </div>
                 ))}
+                {subscribers.length === 0 && (
+                  <div className="col-span-3 text-center py-12">
+                    <p className="text-gray-600 dark:text-gray-400 font-normal">You don't have any subscribers yet</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-normal mt-2">
+                      Create engaging content to attract subscribers!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
