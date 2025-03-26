@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 const Profile = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +29,7 @@ const Profile = () => {
           }
         );
         setProfile(response.data);
+        setUserPosts(response.data.posts || []);
         setFormData({
           username: response.data.username,
           bio: response.data.bio || '',
@@ -65,15 +68,15 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto mt-8">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-100 px-4 py-3 rounded">
           {error}
         </div>
       </div>
@@ -81,92 +84,148 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
-      <div className="bg-white shadow-lg rounded-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Profile</h2>
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            {isEditing ? 'Cancel' : 'Edit Profile'}
-          </button>
-        </div>
-
-        {isEditing ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Username</label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Bio</label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                rows="4"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Avatar URL</label>
-              <input
-                type="url"
-                value={formData.avatar_url}
-                onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="https://example.com/avatar.jpg"
-              />
-            </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Profile</h1>
             <button
-              type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
             >
-              Save Changes
+              {isEditing ? 'Cancel' : 'Edit Profile'}
             </button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.username}
-                  className="w-20 h-20 rounded-full"
-                />
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Profile Info Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              {isEditing ? (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
+                    <input
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      rows="4"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avatar URL</label>
+                    <input
+                      type="url"
+                      value={formData.avatar_url}
+                      onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                </form>
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-2xl text-gray-500">
-                    {profile.username.charAt(0).toUpperCase()}
-                  </span>
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-4">
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.username}
+                        className="w-20 h-20 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                        <span className="text-2xl text-white">
+                          {profile.username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{profile.username}</h3>
+                      <p className="text-gray-600 dark:text-gray-400">{profile.email}</p>
+                    </div>
+                  </div>
+                  {profile.bio && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Bio</h4>
+                      <p className="mt-1 text-gray-600 dark:text-gray-400">{profile.bio}</p>
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</h4>
+                    <p className="mt-1 text-gray-600 dark:text-gray-400">
+                      {new Date(profile.created_at).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
                 </div>
               )}
-              <div>
-                <h3 className="text-xl font-semibold">{profile.username}</h3>
-                <p className="text-gray-600">{profile.email}</p>
-              </div>
-            </div>
-            {profile.bio && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-700">Bio</h4>
-                <p className="mt-1 text-gray-600">{profile.bio}</p>
-              </div>
-            )}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700">Member Since</h4>
-              <p className="mt-1 text-gray-600">
-                {new Date(profile.created_at).toLocaleDateString()}
-              </p>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* User Posts */}
+          <div className="lg:col-span-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">My Posts</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {userPosts.map((post) => (
+                <Link
+                  key={post.id}
+                  to={`/post/${post.id}`}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
+                >
+                  {/* Random gradient background */}
+                  <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                  <div className="p-6">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      {new Date(post.created_at).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      {post.title}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            {userPosts.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400">No posts yet</p>
+                <Link
+                  to="/create-post"
+                  className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                >
+                  Create Your First Post
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

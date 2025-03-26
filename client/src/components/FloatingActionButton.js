@@ -7,8 +7,8 @@ const FloatingActionButton = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Don't show FAB on login or register pages
-  const hiddenPaths = ['/login', '/register'];
+  // Don't show FAB on login, register, or create-post pages
+  const hiddenPaths = ['/login', '/register', '/create-post'];
   if (hiddenPaths.includes(location.pathname) || !user) {
     return null;
   }
