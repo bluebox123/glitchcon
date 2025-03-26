@@ -4,6 +4,32 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
+// Helper function to determine avatar display properties based on username
+const getAvatarProperties = (username) => {
+  if (!username) return { fontSize: 'text-lg', bgColor: 'bg-indigo-100' };
+  
+  const nameLength = username.length;
+  
+  // Adjust font size based on name length
+  let fontSize = 'text-lg';
+  if (nameLength > 10) fontSize = 'text-sm';
+  else if (nameLength > 6) fontSize = 'text-base';
+  else if (nameLength <= 3) fontSize = 'text-xl';
+  
+  // Choose background color based on first letter to make it more personalized
+  const firstChar = username.charAt(0).toLowerCase();
+  let bgColor = 'bg-indigo-100';
+  
+  if ('abcd'.includes(firstChar)) bgColor = 'bg-blue-100 text-blue-600';
+  else if ('efghi'.includes(firstChar)) bgColor = 'bg-green-100 text-green-600';
+  else if ('jklm'.includes(firstChar)) bgColor = 'bg-yellow-100 text-yellow-600';
+  else if ('nopqr'.includes(firstChar)) bgColor = 'bg-purple-100 text-purple-600';
+  else if ('stuvw'.includes(firstChar)) bgColor = 'bg-pink-100 text-pink-600';
+  else bgColor = 'bg-red-100 text-red-600';
+  
+  return { fontSize, bgColor };
+};
+
 const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -548,8 +574,10 @@ const Profile = () => {
                             className="w-12 h-12 rounded-full mr-3"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
-                            <span className="font-medium">{creator.username.charAt(0).toUpperCase()}</span>
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${getAvatarProperties(creator.username).bgColor}`}>
+                            <span className={`font-medium ${getAvatarProperties(creator.username).fontSize}`}>
+                              {creator.username.charAt(0).toUpperCase()}
+                            </span>
                           </div>
                         )}
                         <div>
@@ -594,8 +622,10 @@ const Profile = () => {
                           className="w-12 h-12 rounded-full mr-3"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
-                          <span className="font-medium">{subscriber.username.charAt(0).toUpperCase()}</span>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${getAvatarProperties(subscriber.username).bgColor}`}>
+                          <span className={`font-medium ${getAvatarProperties(subscriber.username).fontSize}`}>
+                            {subscriber.username.charAt(0).toUpperCase()}
+                          </span>
                         </div>
                       )}
                       <div>
