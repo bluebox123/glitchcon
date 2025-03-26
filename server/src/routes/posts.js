@@ -206,74 +206,139 @@ router.get('/:id/likes/count', async (req, res) => {
   }
 });
 
-// Like/Unlike post
+// Like/unlike a post
 router.post('/:id/like', auth, async (req, res) => {
   try {
     const userId = req.user.userId;
+    const postId = req.params.id;
 
-    // First check if the user has already liked the post
-    const { data: existingLike, error: checkError } = await supabase
-      .from('likes')
-      .select('*')
-      .eq('post_id', req.params.id)
-      .eq('user_id', userId)
+    // Check if post exists
+    const { data: post, error: postError } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('id', postId)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      throw checkError;
+    if (postError || !post) {
+      return res.status(404).json({ message: 'Post not found' });
     }
+
+    // Check if user already liked the post
+    const { data: existingLike, error: likeError } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (likeError) throw likeError;
 
     if (existingLike) {
-      // Unlike the post
-      const { error: deleteError } = await supabase
+      // Unlike if already liked
+      const { error: unlikeError } = await supabase
         .from('likes')
         .delete()
-        .eq('post_id', req.params.id)
+        .eq('post_id', postId)
         .eq('user_id', userId);
 
-      if (deleteError) throw deleteError;
-      
-      // Get updated list of users who liked the post
-      const { data: updatedLikes, error: likesError } = await supabase
-        .from('likes')
-        .select('user_id')
-        .eq('post_id', req.params.id);
-
-      if (likesError) throw likesError;
-      
-      res.json({ 
-        message: 'Post unliked successfully',
-        likes: updatedLikes.map(like => like.user_id)
-      });
+      if (unlikeError) throw unlikeError;
+      res.json({ liked: false });
     } else {
       // Like the post
-      const { error: insertError } = await supabase
+      const { error: likeError } = await supabase
         .from('likes')
-        .insert([
-          {
-            post_id: req.params.id,
-            user_id: userId
-          }
-        ]);
+        .insert([{ post_id: postId, user_id: userId }]);
 
-      if (insertError) throw insertError;
-      
-      // Get updated list of users who liked the post
-      const { data: updatedLikes, error: likesError } = await supabase
-        .from('likes')
-        .select('user_id')
-        .eq('post_id', req.params.id);
-
-      if (likesError) throw likesError;
-      
-      res.json({ 
-        message: 'Post liked successfully',
-        likes: updatedLikes.map(like => like.user_id)
-      });
+      if (likeError) throw likeError;
+      res.json({ liked: true });
     }
   } catch (error) {
-    console.error('Error toggling like:', error);
-    res.status(500).json({ message: 'Error toggling like', error: error.message });
+    console.error('Error liking/unliking post:', error);
+    res.status(500).json({ message: 'Error processing like', error: error.message });
+  }
+});
+
+// Increment view count for a post
+router.post('/:id/view', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.body.userId || null; // Anonymous views are allowed
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // Check if post exists
+    const { data: post, error: postError } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('id', postId)
+      .single();
+
+    if (postError || !post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Create a unique view identifier based on user ID or IP address
+    // to prevent counting multiple views from the same source in a short period
+    const viewerIdentifier = userId || clientIp;
+    
+    // Check if this viewer has viewed this post in the last 24 hours
+    const lastDayTimestamp = new Date();
+    lastDayTimestamp.setDate(lastDayTimestamp.getDate() - 1);
+    
+    const { data: existingView, error: viewError } = await supabase
+      .from('views')
+      .select('*')
+      .eq('post_id', postId)
+      .eq('viewer_identifier', viewerIdentifier)
+      .gt('created_at', lastDayTimestamp.toISOString())
+      .maybeSingle();
+
+    if (viewError) throw viewError;
+
+    if (!existingView) {
+      // Insert new view record
+      const { error: insertError } = await supabase
+        .from('views')
+        .insert([{ 
+          post_id: postId, 
+          user_id: userId,
+          viewer_identifier: viewerIdentifier
+        }]);
+
+      if (insertError) throw insertError;
+    }
+
+    // Get updated view count
+    const { count, error: countError } = await supabase
+      .from('views')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (countError) throw countError;
+
+    res.json({ views: count });
+  } catch (error) {
+    console.error('Error tracking post view:', error);
+    res.status(500).json({ message: 'Error tracking post view', error: error.message });
+  }
+});
+
+// Get view count for a post
+router.get('/:id/views', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    
+    // Get view count
+    const { count, error } = await supabase
+      .from('views')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+
+    if (error) throw error;
+
+    res.json(count);
+  } catch (error) {
+    console.error('Error getting view count:', error);
+    res.status(500).json({ message: 'Error getting view count', error: error.message });
   }
 });
 

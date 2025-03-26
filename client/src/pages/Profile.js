@@ -254,11 +254,11 @@ const Profile = () => {
       
       // Show success message
       setError('Unsubscribed successfully');
-      setTimeout(() => setError(''), 3000);
+      setTimeout(() => setError(''), 1500);
     } catch (error) {
       console.error('Error unsubscribing:', error);
       setError('Failed to unsubscribe. Please try again.');
-      setTimeout(() => setError(''), 3000);
+      setTimeout(() => setError(''), 1500);
     } finally {
       setLoading(false);
     }

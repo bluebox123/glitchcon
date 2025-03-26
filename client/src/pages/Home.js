@@ -30,6 +30,7 @@ const Home = () => {
     { value: 'newest', label: 'Newest First' },
     { value: 'oldest', label: 'Oldest First' },
     { value: 'most_likes', label: 'Most Likes' },
+    { value: 'most_views', label: 'Most Views' }
   ];
 
   const fetchUsername = async (userId) => {
@@ -115,24 +116,36 @@ const Home = () => {
 
   // Apply sorting to the filtered posts
   const applyFiltersAndSort = (posts) => {
-    let sortedPosts = [...posts];
-    
-    switch(sortOption) {
-      case 'newest':
-        sortedPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        break;
-      case 'oldest':
-        sortedPosts.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        break;
-      case 'most_likes':
-        sortedPosts.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
-        break;
-      default:
-        // Default to newest first
-        sortedPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
-    
+    // Apply search filter if search query exists
+    const filteredBySearch = posts.filter(post => {
+      if (!searchQuery) return true;
+      
+      const titleMatch = post.title?.toLowerCase().includes(searchQuery.toLowerCase());
+      post.isContentMatch = post.content?.toLowerCase().includes(searchQuery.toLowerCase());
+      const tagsMatch = post.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      const categoryMatch = post.categories?.some(category => category.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      return titleMatch || post.isContentMatch || tagsMatch || categoryMatch;
+    });
+
+    // Sort the filtered posts
+    const sortedPosts = [...filteredBySearch].sort((a, b) => {
+      switch (sortOption) {
+        case 'newest':
+          return new Date(b.created_at) - new Date(a.created_at);
+        case 'oldest':
+          return new Date(a.created_at) - new Date(b.created_at);
+        case 'most_likes':
+          return (b.likes_count || 0) - (a.likes_count || 0);
+        case 'most_views':
+          return (b.view_count || 0) - (a.view_count || 0);
+        default:
+          return new Date(b.created_at) - new Date(a.created_at);
+      }
+    });
+
     setFilteredPosts(sortedPosts);
+    return sortedPosts;
   };
 
   // Handle sort option change
@@ -144,42 +157,53 @@ const Home = () => {
   };
 
   const fetchPosts = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/posts`);
+      const { data: posts } = await axios.get(`${API_BASE_URL}/api/posts`);
       
-      // Fetch likes count for each post
-      const postsWithLikes = await Promise.all(
-        response.data.map(async (post) => {
+      // Fetch usernames for each post
+      const postsWithUsernames = await Promise.all(
+        posts.map(async (post) => {
+          let username = '';
+          try {
+            username = await fetchUsername(post.user_id);
+          } catch (error) {
+            console.error(`Error fetching username for post ${post.id}:`, error);
+            username = 'Unknown User';
+          }
+          
+          // Fetch likes count for each post
+          let likesCount = 0;
           try {
             const likesResponse = await axios.get(`${API_BASE_URL}/api/posts/${post.id}/likes/count`);
-            return {
-              ...post,
-              likes_count: likesResponse.data
-            };
+            likesCount = likesResponse.data;
           } catch (error) {
             console.error(`Error fetching likes for post ${post.id}:`, error);
-            return {
-              ...post,
-              likes_count: 0
-            };
           }
-        })
-      );
-      
-      const postsWithUsernames = await Promise.all(
-        postsWithLikes.map(async (post) => {
-          const username = await fetchUsername(post.user_id);
+          
+          // Fetch view count for each post
+          let viewCount = 0;
+          try {
+            const viewsResponse = await axios.get(`${API_BASE_URL}/api/posts/${post.id}/views`);
+            viewCount = viewsResponse.data;
+          } catch (error) {
+            console.error(`Error fetching views for post ${post.id}:`, error);
+          }
+          
           return {
             ...post,
             username,
-            isContentMatch: false
+            likes_count: likesCount,
+            view_count: viewCount
           };
         })
       );
       
       setAllPosts(postsWithUsernames);
-      applyFiltersAndSort(postsWithUsernames);
-    } catch (err) {
+      const filtered = applyFiltersAndSort(postsWithUsernames);
+      setFilteredPosts(filtered);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
       setError('Failed to fetch posts');
     } finally {
       setLoading(false);
@@ -402,12 +426,20 @@ const Home = () => {
                     ))}
                   </div>
                   
-                  <div className="flex items-center text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
                     <span className="flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-red-500 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
                       </svg>
                       {post.likes_count || 0}
+                    </span>
+                    
+                    <span className="flex items-center">
+                      <svg className="h-5 w-5 mr-1 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      {post.view_count || 0}
                     </span>
                   </div>
                 </div>
