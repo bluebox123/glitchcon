@@ -83,64 +83,112 @@ const Profile = () => {
   const fetchSubscriptions = async () => {
     if (!user) return;
     
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      console.log('Fetching subscriptions with token:', token ? 'Token exists' : 'No token');
-      
-      const response = await axios.get(`${API_BASE_URL}/api/subscribers`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        console.log('Fetching subscriptions with token:', token ? 'Token exists' : 'No token');
+        console.log('Current user ID:', user.id);
+        
+        const response = await axios.get(`${API_BASE_URL}/api/subscribers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('Subscriptions response:', response.data);
+        
+        if (Array.isArray(response.data)) {
+          setSubscriptions(response.data);
+          // Clear any previous errors
+          setError('');
+          break; // Success, exit the retry loop
+        } else {
+          console.error('Unexpected response format:', response.data);
+          setSubscriptions([]);
+          setError('Received unexpected data format from server');
+          setTimeout(() => setError(''), 3000);
         }
-      });
-      
-      console.log('Subscriptions response:', response.data);
-      
-      if (Array.isArray(response.data)) {
-        setSubscriptions(response.data);
-      } else {
-        console.error('Unexpected response format:', response.data);
-        setSubscriptions([]);
+      } catch (error) {
+        attempts++;
+        console.error(`Error fetching subscriptions (attempt ${attempts}/${maxAttempts}):`, error);
+        
+        // Provide more specific error information
+        const errorMessage = error.response?.data?.message || 
+                            'Failed to fetch subscriptions. Please try again later.';
+        
+        // Only set error on final attempt or if it's a 4xx error (client error)
+        if (attempts >= maxAttempts || (error.response && error.response.status >= 400 && error.response.status < 500)) {
+          setError(errorMessage);
+          setTimeout(() => setError(''), 5000);
+        }
+        
+        // If it's not the last attempt, add a small delay before retrying
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching subscriptions:', error);
-      setError('Failed to fetch subscriptions. Please try again later.');
-      setTimeout(() => setError(''), 3000);
-      setSubscriptions([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchSubscribers = async () => {
     if (!user) return;
     
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      console.log('Fetching subscribers with token:', token ? 'Token exists' : 'No token');
-      
-      const response = await axios.get(`${API_BASE_URL}/api/subscribers/subscribers`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts) {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        console.log('Fetching subscribers with token:', token ? 'Token exists' : 'No token');
+        console.log('Current user ID:', user.id);
+        
+        const response = await axios.get(`${API_BASE_URL}/api/subscribers/subscribers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('Subscribers response:', response.data);
+        
+        if (Array.isArray(response.data)) {
+          setSubscribers(response.data);
+          // Clear any previous errors
+          setError('');
+          break; // Success, exit the retry loop
+        } else {
+          console.error('Unexpected response format:', response.data);
+          setSubscribers([]);
+          setError('Received unexpected data format from server');
+          setTimeout(() => setError(''), 3000);
         }
-      });
-      
-      console.log('Subscribers response:', response.data);
-      
-      if (Array.isArray(response.data)) {
-        setSubscribers(response.data);
-      } else {
-        console.error('Unexpected response format:', response.data);
-        setSubscribers([]);
+      } catch (error) {
+        attempts++;
+        console.error(`Error fetching subscribers (attempt ${attempts}/${maxAttempts}):`, error);
+        
+        // Provide more specific error information
+        const errorMessage = error.response?.data?.message || 
+                            'Failed to fetch subscribers. Please try again later.';
+        
+        // Only set error on final attempt or if it's a 4xx error (client error)
+        if (attempts >= maxAttempts || (error.response && error.response.status >= 400 && error.response.status < 500)) {
+          setError(errorMessage);
+          setTimeout(() => setError(''), 5000);
+        }
+        
+        // If it's not the last attempt, add a small delay before retrying
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching subscribers:', error);
-      setError('Failed to fetch subscribers. Please try again later.');
-      setTimeout(() => setError(''), 3000);
-      setSubscribers([]);
-    } finally {
-      setLoading(false);
     }
   };
 
