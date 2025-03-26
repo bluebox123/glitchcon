@@ -21,6 +21,8 @@ const PostDetail = () => {
   const [copied, setCopied] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   const fetchLikesCount = async () => {
     try {
@@ -268,6 +270,33 @@ const PostDetail = () => {
     }
   };
 
+  const handleEdit = () => {
+    navigate(`/edit-post/${id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setIsDeleteLoading(true);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/posts/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setShowDeleteConfirm(false);
+      navigate('/');
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to delete post');
+      setIsDeleteLoading(false);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -307,6 +336,28 @@ const PostDetail = () => {
             <span>{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center space-x-3">
+            {user && user.id === authorId && (
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleEdit}
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 0L11.828 15.9a2.251 2.251 0 01-.354.243l-3.474 1.591a.5.5 0 01-.665-.665l1.591-3.474a2.251 2.251 0 01.243-.354l9.09-9.09z" />
+                  </svg>
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-red-100 text-red-700 border-red-300 hover:bg-red-200 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
             {user && user.id !== authorId && (
               <button
                 onClick={handleSubscribe}
@@ -422,6 +473,42 @@ const PostDetail = () => {
           </div>
         </div>
       </article>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Delete Post</h3>
+            <p className="mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100"
+                disabled={isDeleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+                disabled={isDeleteLoading}
+              >
+                {isDeleteLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="bg-white shadow-lg rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Comments</h2>
