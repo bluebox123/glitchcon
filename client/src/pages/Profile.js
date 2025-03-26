@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -15,6 +16,8 @@ const Profile = () => {
     bio: '',
     avatar_url: ''
   });
+  const [activeTab, setActiveTab] = useState('posts');
+  const [bookmarkedPosts, setBookmarkedPosts] = useState([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -44,6 +47,28 @@ const Profile = () => {
 
     fetchProfile();
   }, [user.id]);
+
+  const fetchBookmarkedPosts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/bookmarks`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch bookmarked posts');
+      const data = await response.json();
+      setBookmarkedPosts(data);
+    } catch (error) {
+      console.error('Error fetching bookmarked posts:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'bookmarks') {
+      fetchBookmarkedPosts();
+    }
+  }, [activeTab]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,42 +210,108 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* User Posts */}
+          {/* Posts and Bookmarks Section */}
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">My Posts</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {userPosts.map((post) => (
-                <Link
-                  key={post.id}
-                  to={`/post/${post.id}`}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
-                >
-                  {/* Random gradient background */}
-                  <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-                  <div className="p-6">
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                      {new Date(post.created_at).toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {post.title}
-                    </h3>
-                  </div>
-                </Link>
-              ))}
+            <div className="mb-6">
+              <div className="border-b border-gray-200 dark:border-gray-700">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('posts')}
+                    className={`${
+                      activeTab === 'posts'
+                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                  >
+                    My Posts
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('bookmarks')}
+                    className={`${
+                      activeTab === 'bookmarks'
+                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                  >
+                    Bookmarks
+                  </button>
+                </nav>
+              </div>
             </div>
-            {userPosts.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-400">No posts yet</p>
-                <Link
-                  to="/create-post"
-                  className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
-                >
-                  Create Your First Post
-                </Link>
+
+            {activeTab === 'posts' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {userPosts.map((post) => (
+                  <Link
+                    key={post.id}
+                    to={`/post/${post.id}`}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
+                  >
+                    {/* Random gradient background */}
+                    <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                    <div className="p-6">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        {new Date(post.created_at).toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        {post.title}
+                      </h3>
+                    </div>
+                  </Link>
+                ))}
+                {userPosts.length === 0 && (
+                  <div className="col-span-2 text-center py-12">
+                    <p className="text-gray-600 dark:text-gray-400">No posts yet</p>
+                    <Link
+                      to="/create-post"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                    >
+                      Create Your First Post
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {bookmarkedPosts.map((post) => (
+                  <Link
+                    key={post.id}
+                    to={`/post/${post.id}`}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
+                  >
+                    <div className="h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                    <div className="p-6">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        {new Date(post.created_at).toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        {post.title}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
+                        {post.content}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+                {bookmarkedPosts.length === 0 && (
+                  <div className="col-span-2 text-center py-12">
+                    <p className="text-gray-600 dark:text-gray-400">No bookmarked posts yet</p>
+                    <Link
+                      to="/"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+                    >
+                      Browse Posts
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>

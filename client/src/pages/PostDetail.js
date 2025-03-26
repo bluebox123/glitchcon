@@ -16,6 +16,7 @@ const PostDetail = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [authorName, setAuthorName] = useState('');
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const fetchLikesCount = async () => {
     try {
@@ -36,6 +37,23 @@ const PostDetail = () => {
     }
   };
 
+  const checkBookmarkStatus = async () => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/bookmarks/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to check bookmark status');
+      const data = await response.json();
+      setIsBookmarked(data.isBookmarked);
+    } catch (error) {
+      console.error('Error checking bookmark status:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchPost = async () => {
       try {
@@ -46,26 +64,25 @@ const PostDetail = () => {
         setPost(postResponse.data);
         setComments(commentsResponse.data);
 
-        // Fetch author name using the user_id from the post
         if (postResponse.data.user_id) {
           await fetchAuthorName(postResponse.data.user_id);
         }
 
-        // Check if user has liked the post
         if (user) {
           const token = localStorage.getItem('token');
-          const likesResponse = await axios.get(
-            `${API_BASE_URL}/api/posts/${id}/likes`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`
+          await Promise.all([
+            checkBookmarkStatus(),
+            axios.get(
+              `${API_BASE_URL}/api/posts/${id}/likes`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
               }
-            }
-          );
-          setIsLiked(likesResponse.data.includes(user.id));
+            ).then(response => setIsLiked(response.data.includes(user.id)))
+          ]);
         }
 
-        // Fetch initial likes count
         await fetchLikesCount();
       } catch (error) {
         console.error('Fetch error:', error);
@@ -130,6 +147,28 @@ const PostDetail = () => {
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to update like');
       setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/bookmarks/${id}`, {
+        method: isBookmarked ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to update bookmark');
+      setIsBookmarked(!isBookmarked);
+    } catch (error) {
+      console.error('Error updating bookmark:', error);
     }
   };
 
@@ -266,6 +305,31 @@ const PostDetail = () => {
             </svg>
             <span>{likesCount}</span>
           </button>
+
+          <button
+            onClick={handleBookmark}
+            className={`flex items-center space-x-1 ${
+              isBookmarked 
+                ? 'text-indigo-600' 
+                : 'text-gray-600 hover:text-indigo-600'
+            }`}
+            aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+          >
+            <svg
+              className="w-5 h-5"
+              fill={isBookmarked ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+              />
+            </svg>
+          </button>
+
           <div className="flex flex-wrap gap-2">
             {post.tags && post.tags.map((tag) => (
               <span

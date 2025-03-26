@@ -29,6 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 app.get('/', (req, res) => {
   res.send('Hello World');
 })
+app.use('/api/bookmarks', require('./routes/bookmarks'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/comments', require('./routes/comments'));
