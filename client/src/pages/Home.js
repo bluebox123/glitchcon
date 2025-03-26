@@ -14,6 +14,7 @@ const Home = () => {
   const [sortOption, setSortOption] = useState('newest'); // Default sort by newest
   const [showFilters, setShowFilters] = useState(false);
   const { user } = useAuth();
+  const [copiedPostId, setCopiedPostId] = useState(null);
 
   const categories = [
     { id: 'future', label: 'Future of work', color: 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-100' },
@@ -342,7 +343,8 @@ const Home = () => {
                       try {
                         if (navigator.clipboard && window.isSecureContext) {
                           await navigator.clipboard.writeText(url);
-                          alert('Post link copied to clipboard!');
+                          setCopiedPostId(post.id);
+                          setTimeout(() => setCopiedPostId(null), 2000);
                         } else {
                           // Fallback for non-secure contexts
                           const textarea = document.createElement('textarea');
@@ -353,19 +355,30 @@ const Home = () => {
                           textarea.select();
                           document.execCommand('copy');
                           document.body.removeChild(textarea);
-                          alert('Post link copied to clipboard!');
+                          setCopiedPostId(post.id);
+                          setTimeout(() => setCopiedPostId(null), 2000);
                         }
                       } catch (err) {
                         console.error('Copy failed', err);
-                        alert('Failed to copy link');
                       }
                     }}
-                    className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                    className="relative text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                     aria-label="Share post"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                    </svg>
+                    {copiedPostId === post.id ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 dark:text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                      </svg>
+                    )}
+                    {copiedPostId === post.id && (
+                      <span className="absolute top-full right-0 mt-1 py-1 px-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 text-xs rounded-md whitespace-nowrap">
+                        Copied!
+                      </span>
+                    )}
                   </button>
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
