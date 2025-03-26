@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext(null);
 
@@ -65,6 +66,32 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const deleteAccount = async () => {
+    try {
+      setError(null);
+      const token = localStorage.getItem('token');
+      if (!user || !token) {
+        throw new Error('You must be logged in to delete your account');
+      }
+      
+      await axios.delete(`${API_BASE_URL}/api/users/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Clear user data from localStorage and state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      
+      return { success: true };
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to delete account');
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -72,6 +99,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    deleteAccount
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

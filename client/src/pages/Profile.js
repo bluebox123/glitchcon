@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../config';
 
 // Helper function to determine avatar display properties based on username
 const getAvatarProperties = (username) => {
-  if (!username) return { fontSize: 'text-lg', bgColor: 'bg-indigo-100' };
+  if (!username) return { fontSize: 'text-lg', bgColor: 'bg-indigo-100', boxWidth: 'w-64' };
   
   const nameLength = username.length;
   
@@ -27,11 +27,18 @@ const getAvatarProperties = (username) => {
   else if ('stuvw'.includes(firstChar)) bgColor = 'bg-pink-100 text-pink-600';
   else bgColor = 'bg-red-100 text-red-600';
   
-  return { fontSize, bgColor };
+  // Calculate box width based on username length
+  let boxWidth = 'w-64'; // Default minimum width
+  if (nameLength <= 5) boxWidth = 'w-64'; // Minimum width for short names
+  else if (nameLength <= 8) boxWidth = 'w-64';
+  else if (nameLength <= 12) boxWidth = 'w-72'; 
+  else boxWidth = 'w-80';
+  
+  return { fontSize, bgColor, boxWidth };
 };
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, deleteAccount } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
@@ -47,6 +54,11 @@ const Profile = () => {
   const [bookmarkedPosts, setBookmarkedPosts] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -273,8 +285,45 @@ const Profile = () => {
     fetchData();
   }, [activeTab]);
 
+  // Validate the form before submission
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.username?.trim()) {
+      errors.username = 'Username is required';
+    } else if (formData.username.length < 3) {
+      errors.username = 'Username must be at least 3 characters';
+    }
+    
+    if (formData.bio?.length > 500) {
+      errors.bio = 'Bio must be less than 500 characters';
+    }
+    
+    if (formData.avatar_url && !isValidURL(formData.avatar_url)) {
+      errors.avatar_url = 'Please enter a valid URL';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Simple URL validation helper
+  const isValidURL = (string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  // Update the handleSubmit function
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
     
     if (!user) {
       navigate('/login');
@@ -282,9 +331,10 @@ const Profile = () => {
     }
     
     try {
+      setIsSubmitting(true);
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `${API_BASE_URL}/api/users/${user.id}`,
+        `${API_BASE_URL}/api/users/profile`,
         formData,
         {
           headers: {
@@ -294,8 +344,36 @@ const Profile = () => {
       );
       setProfile(response.data);
       setIsEditing(false);
+      
+      // Update displayed profile info
+      setUserPosts(response.data.posts || userPosts);
+      
+      // Show success message
+      setError('Profile updated successfully');
+      setTimeout(() => setError(''), 3000);
     } catch (error) {
+      console.error('Error updating profile:', error);
       setError(error.response?.data?.message || 'Failed to update profile');
+    }
+  };
+
+  // Add handleDeleteAccount function
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== profile.username) {
+      setError('Please type your username correctly to confirm deletion');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    try {
+      setIsDeleteLoading(true);
+      await deleteAccount();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setError(error.response?.data?.message || 'Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleteLoading(false);
     }
   };
 
@@ -340,15 +418,76 @@ const Profile = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Profile</h1>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
-            >
-              {isEditing ? 'Cancel' : 'Edit Profile'}
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
+              >
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsDeleting(true)}
+                  className="px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors font-medium"
+                >
+                  Delete Account
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Delete account confirmation modal */}
+      {isDeleting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">Delete Account</h2>
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              This action <span className="font-bold">cannot be undone</span>. All of your data will be permanently deleted.
+            </p>
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              To confirm, please type your username: <span className="font-medium">{profile.username}</span>
+            </p>
+            <input 
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:border-transparent mb-4"
+              placeholder="Enter your username"
+            />
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setIsDeleting(false);
+                  setDeleteConfirmation('');
+                }}
+                className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors font-medium"
+                disabled={isDeleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors font-medium flex items-center"
+                disabled={isDeleteLoading || deleteConfirmation !== profile.username}
+              >
+                {isDeleteLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Account'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -363,9 +502,12 @@ const Profile = () => {
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal"
+                      className={`w-full px-4 py-2 rounded-lg border ${validationErrors.username ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal`}
                       required
                     />
+                    {validationErrors.username && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.username}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
@@ -373,8 +515,12 @@ const Profile = () => {
                       value={formData.bio}
                       onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                       rows="4"
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal text-base leading-relaxed"
+                      className={`w-full px-4 py-2 rounded-lg border ${validationErrors.bio ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal text-base leading-relaxed`}
                     />
+                    {validationErrors.bio && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.bio}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formData.bio?.length || 0}/500 characters</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avatar URL</label>
@@ -382,15 +528,29 @@ const Profile = () => {
                       type="url"
                       value={formData.avatar_url}
                       onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal"
+                      className={`w-full px-4 py-2 rounded-lg border ${validationErrors.avatar_url ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal`}
                       placeholder="https://example.com/avatar.jpg"
                     />
+                    {validationErrors.avatar_url && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.avatar_url}</p>
+                    )}
                   </div>
                   <button
                     type="submit"
-                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium"
+                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-medium flex items-center justify-center"
+                    disabled={isSubmitting}
                   >
-                    Save Changes
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </button>
                 </form>
               ) : (
@@ -559,36 +719,40 @@ const Profile = () => {
                 )}
               </div>
             ) : activeTab === 'subscriptions' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="flex flex-wrap gap-6">
                 {subscriptions.map((creator) => (
                   <div
                     key={creator.id}
-                    className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                    className={`bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow ${getAvatarProperties(creator.username).boxWidth}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center min-w-0 flex-1">
                         {creator.avatar_url ? (
                           <img
                             src={creator.avatar_url}
                             alt={creator.username}
-                            className="w-12 h-12 rounded-full mr-3"
+                            className="w-12 h-12 rounded-full mr-3 flex-shrink-0"
                           />
                         ) : (
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${getAvatarProperties(creator.username).bgColor}`}>
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${getAvatarProperties(creator.username).bgColor}`}>
                             <span className={`font-medium ${getAvatarProperties(creator.username).fontSize}`}>
                               {creator.username.charAt(0).toUpperCase()}
                             </span>
                           </div>
                         )}
-                        <div>
-                          <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight">
+                        <div className="min-w-0">
+                          <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight truncate">
                             {creator.username}
                           </h3>
                         </div>
                       </div>
                       <button
-                        onClick={() => handleUnsubscribe(creator.id)}
-                        className="px-3 py-1 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-full border border-red-200 transition-colors font-medium"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleUnsubscribe(creator.id);
+                        }}
+                        className="px-3 py-1 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-full border border-red-200 transition-colors font-medium flex-shrink-0"
                       >
                         Unsubscribe
                       </button>
@@ -608,28 +772,28 @@ const Profile = () => {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="flex flex-wrap gap-6">
                 {subscribers.map((subscriber) => (
                   <div
                     key={subscriber.id}
-                    className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                    className={`bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow ${getAvatarProperties(subscriber.username).boxWidth}`}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center min-w-0">
                       {subscriber.avatar_url ? (
                         <img
                           src={subscriber.avatar_url}
                           alt={subscriber.username}
-                          className="w-12 h-12 rounded-full mr-3"
+                          className="w-12 h-12 rounded-full mr-3 flex-shrink-0"
                         />
                       ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${getAvatarProperties(subscriber.username).bgColor}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${getAvatarProperties(subscriber.username).bgColor}`}>
                           <span className={`font-medium ${getAvatarProperties(subscriber.username).fontSize}`}>
                             {subscriber.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
-                      <div>
-                        <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight">
+                      <div className="min-w-0">
+                        <h3 className="font-medium text-gray-800 dark:text-gray-200 tracking-tight truncate">
                           {subscriber.username}
                         </h3>
                       </div>
