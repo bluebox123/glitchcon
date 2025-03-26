@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../config';
 
 const Profile = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,13 +19,24 @@ const Profile = () => {
   });
   const [activeTab, setActiveTab] = useState('posts');
   const [bookmarkedPosts, setBookmarkedPosts] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subscribers, setSubscribers] = useState([]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!user) return;
+      
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get(
-          `http://localhost:5000/api/users/${user.id}`,
+          `${API_BASE_URL}/api/users/${user.id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -45,10 +57,14 @@ const Profile = () => {
       }
     };
 
-    fetchProfile();
-  }, [user.id]);
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
   const fetchBookmarkedPosts = async () => {
+    if (!user) return;
+    
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/bookmarks`, {
@@ -64,18 +80,137 @@ const Profile = () => {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'bookmarks') {
-      fetchBookmarkedPosts();
+  const fetchSubscriptions = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      console.log('Fetching subscriptions with token:', token ? 'Token exists' : 'No token');
+      
+      const response = await axios.get(`${API_BASE_URL}/api/subscribers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Subscriptions response:', response.data);
+      
+      if (Array.isArray(response.data)) {
+        setSubscriptions(response.data);
+      } else {
+        console.error('Unexpected response format:', response.data);
+        setSubscriptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      setError('Failed to fetch subscriptions. Please try again later.');
+      setTimeout(() => setError(''), 3000);
+      setSubscriptions([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const fetchSubscribers = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      console.log('Fetching subscribers with token:', token ? 'Token exists' : 'No token');
+      
+      const response = await axios.get(`${API_BASE_URL}/api/subscribers/subscribers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Subscribers response:', response.data);
+      
+      if (Array.isArray(response.data)) {
+        setSubscribers(response.data);
+      } else {
+        console.error('Unexpected response format:', response.data);
+        setSubscribers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subscribers:', error);
+      setError('Failed to fetch subscribers. Please try again later.');
+      setTimeout(() => setError(''), 3000);
+      setSubscribers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnsubscribe = async (creatorId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      console.log('Unsubscribing from creator:', creatorId);
+      
+      const response = await axios.delete(`${API_BASE_URL}/api/subscribers/${creatorId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Unsubscribe response:', response.data);
+      
+      // Update the subscriptions list by removing the unsubscribed creator
+      setSubscriptions(subscriptions.filter(sub => sub.id !== creatorId));
+      
+      // Show success message
+      setError('Unsubscribed successfully');
+      setTimeout(() => setError(''), 3000);
+    } catch (error) {
+      console.error('Error unsubscribing:', error);
+      setError('Failed to unsubscribe. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (activeTab === 'bookmarks') {
+          await fetchBookmarkedPosts();
+        } else if (activeTab === 'subscriptions') {
+          await fetchSubscriptions();
+        } else if (activeTab === 'subscribers') {
+          await fetchSubscribers();
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to fetch data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [activeTab]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        `http://localhost:5000/api/users/${user.id}`,
+        `${API_BASE_URL}/api/users/${user.id}`,
         formData,
         {
           headers: {
@@ -89,6 +224,14 @@ const Profile = () => {
       setError(error.response?.data?.message || 'Failed to update profile');
     }
   };
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -104,6 +247,14 @@ const Profile = () => {
         <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-100 px-4 py-3 rounded">
           {error}
         </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
       </div>
     );
   }
@@ -235,6 +386,26 @@ const Profile = () => {
                   >
                     Bookmarks
                   </button>
+                  <button
+                    onClick={() => setActiveTab('subscriptions')}
+                    className={`${
+                      activeTab === 'subscriptions'
+                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                  >
+                    Subscriptions
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('subscribers')}
+                    className={`${
+                      activeTab === 'subscribers'
+                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium`}
+                  >
+                    Subscribers
+                  </button>
                 </nav>
               </div>
             </div>
@@ -275,7 +446,7 @@ const Profile = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : activeTab === 'bookmarks' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {bookmarkedPosts.map((post) => (
                   <Link
@@ -312,6 +483,70 @@ const Profile = () => {
                     </Link>
                   </div>
                 )}
+              </div>
+            ) : activeTab === 'subscriptions' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {subscriptions.map((creator) => (
+                  <div
+                    key={creator.id}
+                    className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {creator.avatar_url ? (
+                          <img
+                            src={creator.avatar_url}
+                            alt={creator.username}
+                            className="w-12 h-12 rounded-full mr-3"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
+                            {creator.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-medium text-gray-800">
+                            {creator.username}
+                          </h3>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUnsubscribe(creator.id)}
+                        className="px-3 py-1 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-full border border-red-200 transition-colors"
+                      >
+                        Unsubscribe
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {subscribers.map((subscriber) => (
+                  <div
+                    key={subscriber.id}
+                    className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-center">
+                      {subscriber.avatar_url ? (
+                        <img
+                          src={subscriber.avatar_url}
+                          alt={subscriber.username}
+                          className="w-12 h-12 rounded-full mr-3"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-xl mr-3">
+                          {subscriber.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-medium text-gray-800">
+                          {subscriber.username}
+                        </h3>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

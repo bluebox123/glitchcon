@@ -150,4 +150,46 @@ router.get('/:id/comments', async (req, res) => {
   }
 });
 
+// Get user by ID
+router.get('/:userId', async (req, res) => {
+  try {
+    // Get user info from supabase
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, avatar_url, created_at, bio')
+      .eq('id', req.params.userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user:', error);
+      return res.status(500).json({ message: 'Error fetching user' });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get user's posts
+    const { data: posts, error: postsError } = await supabase
+      .from('posts')
+      .select('id, title, content, created_at, tags, categories')
+      .eq('user_id', req.params.userId)
+      .order('created_at', { ascending: false });
+
+    if (postsError) {
+      console.error('Error fetching user posts:', postsError);
+      return res.status(500).json({ message: 'Error fetching user posts' });
+    }
+
+    // Return combined user and posts info
+    res.json({
+      ...user,
+      posts: posts || []
+    });
+  } catch (error) {
+    console.error('Error in get user by ID:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

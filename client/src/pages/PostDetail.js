@@ -16,7 +16,11 @@ const PostDetail = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [authorName, setAuthorName] = useState('');
+  const [authorId, setAuthorId] = useState('');
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(0);
 
   const fetchLikesCount = async () => {
     try {
@@ -31,6 +35,7 @@ const PostDetail = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/users/${userId}`);
       setAuthorName(response.data.username);
+      setAuthorId(userId);
     } catch (error) {
       console.error('Error fetching author name:', error);
       setAuthorName('Unknown User');
@@ -54,6 +59,32 @@ const PostDetail = () => {
     }
   };
 
+  const checkSubscriptionStatus = async (creatorId) => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/subscribers/${creatorId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to check subscription status');
+      const data = await response.json();
+      setIsSubscribed(data.isSubscribed);
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+    }
+  };
+
+  const fetchSubscriberCount = async (creatorId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/subscribers/${creatorId}/count`);
+      setSubscriberCount(response.data);
+    } catch (error) {
+      console.error('Error fetching subscriber count:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchPost = async () => {
       try {
@@ -66,6 +97,11 @@ const PostDetail = () => {
 
         if (postResponse.data.user_id) {
           await fetchAuthorName(postResponse.data.user_id);
+          await fetchSubscriberCount(postResponse.data.user_id);
+          
+          if (user) {
+            await checkSubscriptionStatus(postResponse.data.user_id);
+          }
         }
 
         if (user) {
@@ -172,6 +208,66 @@ const PostDetail = () => {
     }
   };
 
+  const handleSubscribe = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    if (user.id === authorId) {
+      setError("You can't subscribe to yourself");
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/subscribers/${authorId}`, {
+        method: isSubscribed ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to update subscription');
+      
+      const data = await response.json();
+      setIsSubscribed(data.isSubscribed);
+      // Update subscriber count
+      await fetchSubscriberCount(authorId);
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      setError('Failed to update subscription');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    if (!post) return;
+    try {
+      const url = window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        // Fallback for browsers that don't support clipboard API
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (error) {
+      console.error('Copy operation failed:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -204,81 +300,65 @@ const PostDetail = () => {
     <div className="max-w-4xl mx-auto mt-8">
       <article className="bg-white shadow-lg rounded-lg p-6 mb-8">
         <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <div className="flex items-center text-gray-600">
             <span>By {authorName}</span>
             <span className="mx-2">•</span>
             <span>{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
-          <button
-            onClick={async () => {
-              const url = window.location.href;
-              const button = document.querySelector('#share-button');
-              
-              const copyToClipboard = async (text) => {
-                try {
-                  if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(text);
-                    return true;
-                  }
-                  
-                  // Fallback for non-secure contexts
-                  const textarea = document.createElement('textarea');
-                  textarea.value = text;
-                  textarea.style.position = 'fixed';
-                  textarea.style.opacity = '0';
-                  document.body.appendChild(textarea);
-                  textarea.select();
-                  
-                  try {
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    return true;
-                  } catch (err) {
-                    console.error('Fallback: Oops, unable to copy', err);
-                    document.body.removeChild(textarea);
-                    return false;
-                  }
-                } catch (err) {
-                  console.error('Copy failed', err);
-                  return false;
-                }
-              };
-
-              try {
-                const success = await copyToClipboard(url);
-                if (success) {
-                  button.classList.add('copied');
-                  setTimeout(() => {
-                    if (button && button.classList) {
-                      button.classList.remove('copied');
-                    }
-                  }, 2000);
-                }
-              } catch (err) {
-                console.error('Copy operation failed:', err);
-              }
-            }}
-            id="share-button"
-            className="group flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative min-w-[100px]"
-            aria-label="Share post"
-          >
-            <div className="relative flex items-center space-x-2">
-              <svg className="w-5 h-5 transition-all duration-200 group-[.copied]:opacity-0 group-[.copied]:scale-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-              </svg>
-              <svg 
-                className="w-5 h-5 text-green-500 absolute left-0 transition-all duration-200 scale-0 opacity-0 group-[.copied]:opacity-100 group-[.copied]:scale-100" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+          <div className="flex items-center space-x-3">
+            {user && user.id !== authorId && (
+              <button
+                onClick={handleSubscribe}
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                  isSubscribed 
+                    ? 'bg-indigo-100 text-indigo-600 border-indigo-300 hover:bg-indigo-200' 
+                    : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                }`}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4"
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  {isSubscribed ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  )}
+                </svg>
+                <span>{isSubscribed ? 'Subscribed' : 'Subscribe'}</span>
+                <span className="ml-1 text-xs">({subscriberCount})</span>
+              </button>
+            )}
+            <button
+              onClick={copyToClipboard}
+              className="flex items-center space-x-1 text-gray-600 hover:text-blue-500 transition-colors relative"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
               </svg>
-              <span className="transition-all duration-200 group-[.copied]:opacity-0">Share</span>
-              <span className="absolute left-0 transition-all duration-200 opacity-0 scale-0 group-[.copied]:opacity-100 group-[.copied]:scale-100 text-green-500 whitespace-nowrap pl-7">Copied!</span>
-            </div>
-          </button>
+              <span className="text-sm">Share</span>
+              {copied && (
+                <span className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 py-1 px-2 bg-green-100 text-green-800 text-xs rounded-md whitespace-nowrap z-10">
+                  Copied!
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         <div className="prose max-w-none mb-4">{post.content}</div>
         <div className="flex items-center space-x-4">
