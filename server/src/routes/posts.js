@@ -170,46 +170,110 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Like post
+// Get users who liked the post
+router.get('/:id/likes', async (req, res) => {
+  try {
+    const { data: likes, error } = await supabase
+      .from('likes')
+      .select('user_id')
+      .eq('post_id', req.params.id);
+
+    if (error) throw error;
+
+    // Extract user_ids from the likes array
+    const userIds = likes.map(like => like.user_id);
+    res.json(userIds);
+  } catch (error) {
+    console.error('Error getting likes:', error);
+    res.status(500).json({ message: 'Error getting likes', error: error.message });
+  }
+});
+
+// Get count of likes for a post
+router.get('/:id/likes/count', async (req, res) => {
+  try {
+    const { count, error } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', req.params.id);
+
+    if (error) throw error;
+
+    res.json(count || 0);
+  } catch (error) {
+    console.error('Error getting likes count:', error);
+    res.status(500).json({ message: 'Error getting likes count', error: error.message });
+  }
+});
+
+// Like/Unlike post
 router.post('/:id/like', auth, async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    const { error } = await supabase
+    // First check if the user has already liked the post
+    const { data: existingLike, error: checkError } = await supabase
       .from('likes')
-      .insert([
-        {
-          post_id: req.params.id,
-          user_id: userId
-        }
-      ]);
-
-    if (error) throw error;
-
-    res.json({ message: 'Post liked successfully' });
-  } catch (error) {
-    console.error('Error liking post:', error);
-    res.status(500).json({ message: 'Error liking post', error: error.message });
-  }
-});
-
-// Unlike post
-router.delete('/:id/like', auth, async (req, res) => {
-  try {
-    const userId = req.user.userId;
-
-    const { error } = await supabase
-      .from('likes')
-      .delete()
+      .select('*')
       .eq('post_id', req.params.id)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .single();
 
-    if (error) throw error;
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      throw checkError;
+    }
 
-    res.json({ message: 'Post unliked successfully' });
+    if (existingLike) {
+      // Unlike the post
+      const { error: deleteError } = await supabase
+        .from('likes')
+        .delete()
+        .eq('post_id', req.params.id)
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+      
+      // Get updated list of users who liked the post
+      const { data: updatedLikes, error: likesError } = await supabase
+        .from('likes')
+        .select('user_id')
+        .eq('post_id', req.params.id);
+
+      if (likesError) throw likesError;
+      
+      res.json({ 
+        message: 'Post unliked successfully',
+        likes: updatedLikes.map(like => like.user_id)
+      });
+    } else {
+      // Like the post
+      const { error: insertError } = await supabase
+        .from('likes')
+        .insert([
+          {
+            post_id: req.params.id,
+            user_id: userId
+          }
+        ]);
+
+      if (insertError) throw insertError;
+      
+      // Get updated list of users who liked the post
+      const { data: updatedLikes, error: likesError } = await supabase
+        .from('likes')
+        .select('user_id')
+        .eq('post_id', req.params.id);
+
+      if (likesError) throw likesError;
+      
+      res.json({ 
+        message: 'Post liked successfully',
+        likes: updatedLikes.map(like => like.user_id)
+      });
+    }
   } catch (error) {
-    console.error('Error unliking post:', error);
-    res.status(500).json({ message: 'Error unliking post', error: error.message });
+    console.error('Error toggling like:', error);
+    res.status(500).json({ message: 'Error toggling like', error: error.message });
   }
 });
 
