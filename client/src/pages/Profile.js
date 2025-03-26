@@ -37,6 +37,15 @@ const getAvatarProperties = (username) => {
   return { fontSize, bgColor, boxWidth };
 };
 
+const AVATAR_OPTIONS = [
+  { url: '/woman.png', label: 'Woman 1' },
+  { url: '/woman (1).png', label: 'Woman 2' },
+  { url: '/man.png', label: 'Man 1' },
+  { url: '/man (1).png', label: 'Man 2' },
+  { url: '/man (2).png', label: 'Man 3' },
+  { url: '/human.png', label: 'Person' },
+];
+
 const Profile = () => {
   const { user, deleteAccount } = useAuth();
   const navigate = useNavigate();
@@ -299,22 +308,8 @@ const Profile = () => {
       errors.bio = 'Bio must be less than 500 characters';
     }
     
-    if (formData.avatar_url && !isValidURL(formData.avatar_url)) {
-      errors.avatar_url = 'Please enter a valid URL';
-    }
-    
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  // Simple URL validation helper
-  const isValidURL = (string) => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
-    }
   };
 
   // Update the handleSubmit function
@@ -332,28 +327,40 @@ const Profile = () => {
     
     try {
       setIsSubmitting(true);
+      setError('');
       const token = localStorage.getItem('token');
+      
+      // Use userId from the URL parameter for the update
       const response = await axios.put(
-        `${API_BASE_URL}/api/users/profile`,
+        `${API_BASE_URL}/api/users/${user.id}`,
         formData,
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
-      setProfile(response.data);
-      setIsEditing(false);
+
+      // Update local state with the response data
+      setProfile(prevProfile => ({
+        ...prevProfile,
+        ...response.data
+      }));
       
-      // Update displayed profile info
-      setUserPosts(response.data.posts || userPosts);
+      setIsEditing(false);
       
       // Show success message
       setError('Profile updated successfully');
       setTimeout(() => setError(''), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError(error.response?.data?.message || 'Failed to update profile');
+      setError(
+        error.response?.data?.message || 
+        'Failed to update profile. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -523,17 +530,34 @@ const Profile = () => {
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formData.bio?.length || 0}/500 characters</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avatar URL</label>
-                    <input
-                      type="url"
-                      value={formData.avatar_url}
-                      onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                      className={`w-full px-4 py-2 rounded-lg border ${validationErrors.avatar_url ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent font-normal`}
-                      placeholder="https://example.com/avatar.jpg"
-                    />
-                    {validationErrors.avatar_url && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.avatar_url}</p>
-                    )}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Choose Avatar</label>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      {AVATAR_OPTIONS.map((avatar) => (
+                        <div
+                          key={avatar.url}
+                          onClick={() => setFormData({ ...formData, avatar_url: avatar.url })}
+                          className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                            formData.avatar_url === avatar.url
+                              ? 'border-indigo-500 shadow-lg scale-105'
+                              : 'border-transparent hover:border-gray-300'
+                          }`}
+                        >
+                          <img
+                            src={avatar.url}
+                            alt={avatar.label}
+                            className="w-full h-auto"
+                          />
+                          {formData.avatar_url === avatar.url && (
+                            <div className="absolute top-2 right-2 bg-indigo-500 text-white rounded-full p-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Click on an avatar to select it</p>
                   </div>
                   <button
                     type="submit"

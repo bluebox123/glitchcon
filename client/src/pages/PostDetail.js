@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { summarizeContent } from '../services/geminiService';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -24,6 +25,9 @@ const PostDetail = () => {
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
 
   const fetchLikesCount = async () => {
     try {
@@ -331,6 +335,23 @@ const PostDetail = () => {
     }
   };
 
+  const handleSummarize = async () => {
+    if (!post || !post.content) return;
+    
+    try {
+      setIsSummarizing(true);
+      setError('');
+      const summary = await summarizeContent(post.content);
+      setSummary(summary);
+      setShowSummary(true);
+    } catch (error) {
+      setError(error.message || 'Failed to generate summary. Please try again.');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -370,6 +391,28 @@ const PostDetail = () => {
             <span>{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleSummarize}
+              disabled={isSummarizing}
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSummarizing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Summarizing...</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Summarize</span>
+                </>
+              )}
+            </button>
             {user && user.id === authorId && (
               <div className="flex space-x-2">
                 <button
@@ -445,7 +488,28 @@ const PostDetail = () => {
             </button>
           </div>
         </div>
-        <div className="prose max-w-none mb-4">{post.content}</div>
+        <div className="prose max-w-none mb-4">
+          {showSummary ? (
+            <div className="space-y-4">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-indigo-800 mb-2">AI Summary</h3>
+                <p className="text-indigo-700">{summary}</p>
+              </div>
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-2">Full Content</h3>
+                <p>{post.content}</p>
+              </div>
+              <button
+                onClick={() => setShowSummary(false)}
+                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+              >
+                Hide Summary
+              </button>
+            </div>
+          ) : (
+            <p>{post.content}</p>
+          )}
+        </div>
         <div className="flex items-center space-x-4">
           <button
             onClick={handleLike}
