@@ -12,6 +12,7 @@ import PostDetail from './pages/PostDetail';
 import Profile from './pages/Profile';
 import FloatingActionButton from './components/FloatingActionButton';
 import NavigationBar from './components/NavigationBar';
+import ChatBot from './components/ChatBot';
 
 const App = () => {
   return (
@@ -30,6 +31,7 @@ const App = () => {
               <Route path="/profile" element={<Profile />} />
             </Routes>
             <FloatingActionButton />
+            <ChatBot />
           </div>
         </AuthProvider>
       </ThemeProvider>

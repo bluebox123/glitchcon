@@ -82,7 +82,8 @@ const Profile = () => {
       
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(
+        console.log('Fetching profile data for user:', user.id);
+        const profileResponse = await axios.get(
           `${API_BASE_URL}/api/users/${user.id}`,
           {
             headers: {
@@ -90,14 +91,16 @@ const Profile = () => {
             }
           }
         );
-        setProfile(response.data);
-        setUserPosts(response.data.posts || []);
+        console.log('Profile response:', profileResponse.data);
+        setProfile(profileResponse.data);
+        setUserPosts(profileResponse.data.posts || []);
         setFormData({
-          username: response.data.username,
-          bio: response.data.bio || '',
-          avatar_url: response.data.avatar_url || ''
+          username: profileResponse.data.username,
+          bio: profileResponse.data.bio || '',
+          avatar_url: profileResponse.data.avatar_url || ''
         });
       } catch (error) {
+        console.error('Error fetching profile data:', error);
         setError(error.response?.data?.message || 'Failed to fetch profile');
       } finally {
         setLoading(false);

@@ -253,94 +253,6 @@ router.put('/:userId', authenticateToken, async (req, res) => {
 });
 
 // Delete user account
-router.delete('/profile', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.userId || req.user.id;
-    console.log(`Deleting user account: ${userId}`);
-    
-    // Begin a transaction (we'll use multiple related operations)
-    // 1. Delete user's posts
-    const { error: postsError } = await supabase
-      .from('posts')
-      .delete()
-      .eq('user_id', userId);
-      
-    if (postsError) {
-      console.error('Error deleting posts:', postsError);
-      throw postsError;
-    }
-    
-    // 2. Delete user's likes
-    const { error: likesError } = await supabase
-      .from('likes')
-      .delete()
-      .eq('user_id', userId);
-      
-    if (likesError) {
-      console.error('Error deleting likes:', likesError);
-      throw likesError;
-    }
-    
-    // 3. Delete user's comments
-    const { error: commentsError } = await supabase
-      .from('comments')
-      .delete()
-      .eq('user_id', userId);
-      
-    if (commentsError) {
-      console.error('Error deleting comments:', commentsError);
-      throw commentsError;
-    }
-    
-    // 4. Delete user's bookmarks
-    const { error: bookmarksError } = await supabase
-      .from('bookmarks')
-      .delete()
-      .eq('user_id', userId);
-      
-    if (bookmarksError) {
-      console.error('Error deleting bookmarks:', bookmarksError);
-      throw bookmarksError;
-    }
-    
-    // 5. Delete user's subscriptions and subscribers
-    const { error: subscribersError } = await supabase
-      .from('subscribers')
-      .delete()
-      .or(`subscriber_id.eq.${userId},creator_id.eq.${userId}`);
-      
-    if (subscribersError) {
-      console.error('Error deleting subscribers:', subscribersError);
-      throw subscribersError;
-    }
-    
-    // 6. Delete the user from the users table
-    const { error: userError } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
-      
-    if (userError) {
-      console.error('Error deleting user:', userError);
-      throw userError;
-    }
-    
-    // 7. Delete the user from auth.users (requires special admin access)
-    try {
-      await supabase.auth.admin.deleteUser(userId);
-    } catch (authError) {
-      console.error('Error deleting auth user:', authError);
-      // Continue anyway as we've already deleted the user data
-    }
-    
-    res.json({ message: 'Account successfully deleted' });
-  } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({ message: 'Error deleting account', error: error.message });
-  }
-});
-
-// Delete user account
 router.delete('/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -420,17 +332,9 @@ router.delete('/:userId', authenticateToken, async (req, res) => {
       throw userError;
     }
     
-    // 7. Delete the user from auth.users (requires special admin access)
-    try {
-      await supabase.auth.admin.deleteUser(userId);
-    } catch (authError) {
-      console.error('Error deleting auth user:', authError);
-      // Continue anyway as we've already deleted the user data
-    }
-    
-    res.json({ message: 'Account successfully deleted' });
+    res.json({ message: 'Account deleted successfully' });
   } catch (error) {
-    console.error('Delete account error:', error);
+    console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Error deleting account', error: error.message });
   }
 });
