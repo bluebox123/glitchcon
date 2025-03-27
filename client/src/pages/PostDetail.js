@@ -432,6 +432,18 @@ const PostDetail = () => {
                   {format(new Date(post.created_at), 'MMMM d, yyyy')}
                 </p>
               </div>
+              {user && user.id !== post.user_id && (
+                <button
+                  onClick={handleSubscribe}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isSubscribed
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      : 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                  }`}
+                >
+                  {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                </button>
+              )}
             </div>
 
             <div className="flex items-center space-x-4 text-gray-500 dark:text-gray-400 mt-4">
