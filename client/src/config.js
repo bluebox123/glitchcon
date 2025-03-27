@@ -1,8 +1,5 @@
 // API base URL configuration
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000'
-    : `http://${window.location.hostname}:5000`);
+export const API_BASE_URL = "https://glitchcon.onrender.com";
 
 // Gemini API configuration
 // Replace this with your actual API key or use environment variables
