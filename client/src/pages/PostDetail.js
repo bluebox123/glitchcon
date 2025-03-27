@@ -413,21 +413,9 @@ const PostDetail = () => {
           {/* Post Header */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <img 
-                  src={post?.users?.avatar_url || getDefaultAvatar(authorName)} 
-                  alt={authorName}
-                  className="w-10 h-10 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
-                />
-                <div>
-                  <h2 className="text-[15px] text-gray-900 dark:text-white font-medium">
-                    {authorName}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {format(new Date(post.created_at), 'MMMM d, yyyy')}
-                  </p>
-                </div>
-              </div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {post.title}
+              </h1>
               {post.categories && post.categories[0] && (
                 <span className="px-3 py-1 text-sm bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 rounded-full">
                   {post.categories[0]}
@@ -435,11 +423,18 @@ const PostDetail = () => {
               )}
             </div>
 
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              {post.title}
-            </h1>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-[15px] text-gray-900 dark:text-white font-medium">
+                  {authorName}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {format(new Date(post.created_at), 'MMMM d, yyyy')}
+                </p>
+              </div>
+            </div>
 
-            <div className="flex items-center space-x-4 text-gray-500 dark:text-gray-400">
+            <div className="flex items-center space-x-4 text-gray-500 dark:text-gray-400 mt-4">
               <div className="flex items-center space-x-1">
                 <button
                   onClick={handleLike}
