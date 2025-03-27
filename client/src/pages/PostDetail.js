@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { summarizeContent } from '../services/geminiService';
+import { format } from 'date-fns';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -28,6 +29,19 @@ const PostDetail = () => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState('');
   const [showSummary, setShowSummary] = useState(false);
+  const [authorAvatarUrl, setAuthorAvatarUrl] = useState('');
+
+  const getDefaultAvatar = (username) => {
+    const avatars = [
+      '/default-avatar.png',
+      '/default-avatar-2.png',
+      '/default-avatar-3.png',
+      '/default-avatar-4.png',
+      '/default-avatar-5.png'
+    ];
+    const index = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % avatars.length;
+    return avatars[index];
+  };
 
   const fetchLikesCount = async () => {
     try {
@@ -76,6 +90,16 @@ const PostDetail = () => {
     } catch (error) {
       console.error('Error fetching author name:', error);
       setAuthorName('Unknown User');
+    }
+  };
+
+  const fetchAuthorAvatar = async (userId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/users/${userId}/avatar`);
+      setAuthorAvatarUrl(response.data.avatar_url);
+    } catch (error) {
+      console.error('Error fetching author avatar:', error);
+      setAuthorAvatarUrl('');
     }
   };
 
@@ -133,8 +157,10 @@ const PostDetail = () => {
         setComments(commentsResponse.data);
 
         if (postResponse.data.user_id) {
-          await fetchAuthorName(postResponse.data.user_id);
-          await fetchSubscriberCount(postResponse.data.user_id);
+          await Promise.all([
+            fetchAuthorName(postResponse.data.user_id),
+            fetchSubscriberCount(postResponse.data.user_id)
+          ]);
           
           if (user) {
             await checkSubscriptionStatus(postResponse.data.user_id);
@@ -381,309 +407,223 @@ const PostDetail = () => {
   if(post.length === 0) return <div>No Post Found</div>;
 
   return (
-    <div className="max-w-4xl mx-auto mt-8">
-      <article className="bg-white shadow-lg rounded-lg p-6 mb-8">
-        <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-          <div className="flex items-center text-gray-600">
-            <span>By {authorName}</span>
-            <span className="mx-2">•</span>
-            <span>{new Date(post.created_at).toLocaleDateString()}</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleSummarize}
-              disabled={isSummarizing}
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-indigo-100 text-indigo-700 border-indigo-300 hover:bg-indigo-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSummarizing ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Summarizing...</span>
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>Summarize</span>
-                </>
-              )}
-            </button>
-            {user && user.id === authorId && (
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleEdit}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 0L11.828 15.9a2.251 2.251 0 01-.354.243l-3.474 1.591a.5.5 0 01-.665-.665l1.591-3.474a2.251 2.251 0 01.243-.354l9.09-9.09z" />
-                  </svg>
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-red-100 text-red-700 border-red-300 hover:bg-red-200 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            )}
-            {user && user.id !== authorId && (
-              <button
-                onClick={handleSubscribe}
-                className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                  isSubscribed 
-                    ? 'bg-indigo-100 text-indigo-600 border-indigo-300 hover:bg-indigo-200' 
-                    : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }`}
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-4 w-4"
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  {isSubscribed ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  )}
-                </svg>
-                <span>{isSubscribed ? 'Subscribed' : 'Subscribe'}</span>
-                <span className="ml-1 text-xs">({subscriberCount})</span>
-              </button>
-            )}
-            <button
-              onClick={copyToClipboard}
-              className="flex items-center space-x-1 text-gray-600 hover:text-blue-500 transition-colors relative"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <article className="bg-white dark:bg-[#111111] rounded-lg shadow-lg overflow-hidden">
+          {/* Post Header */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <img 
+                  src={post?.users?.avatar_url || getDefaultAvatar(authorName)} 
+                  alt={authorName}
+                  className="w-10 h-10 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
                 />
-              </svg>
-              <span className="text-sm">Share</span>
-              {copied && (
-                <span className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 py-1 px-2 bg-green-100 text-green-800 text-xs rounded-md whitespace-nowrap z-10">
-                  Copied!
+                <div>
+                  <h2 className="text-[15px] text-gray-900 dark:text-white font-medium">
+                    {authorName}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {format(new Date(post.created_at), 'MMMM d, yyyy')}
+                  </p>
+                </div>
+              </div>
+              {post.categories && post.categories[0] && (
+                <span className="px-3 py-1 text-sm bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 rounded-full">
+                  {post.categories[0]}
                 </span>
               )}
-            </button>
-          </div>
-        </div>
-        <div className="prose max-w-none mb-4">
-          {showSummary ? (
-            <div className="space-y-4">
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-indigo-800 mb-2">AI Summary</h3>
-                <p className="text-indigo-700">{summary}</p>
+            </div>
+
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              {post.title}
+            </h1>
+
+            <div className="flex items-center space-x-4 text-gray-500 dark:text-gray-400">
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={handleLike}
+                  className={`flex items-center space-x-1 ${isLiked ? 'text-yellow-500' : ''}`}
+                >
+                  <svg className="w-5 h-5" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  <span>{likesCount}</span>
+                </button>
               </div>
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-semibold mb-2">Full Content</h3>
-                <p>{post.content}</p>
+              <div className="flex items-center space-x-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span>{viewCount}</span>
               </div>
               <button
-                onClick={() => setShowSummary(false)}
-                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                onClick={handleBookmark}
+                className={`flex items-center space-x-1 ${isBookmarked ? 'text-yellow-500' : ''}`}
               >
-                Hide Summary
+                <svg className="w-5 h-5" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="flex items-center space-x-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 5H6a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                {copied && <span className="text-sm text-yellow-500">Copied!</span>}
               </button>
             </div>
-          ) : (
-            <p>{post.content}</p>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleLike}
-            className={`flex items-center space-x-1 ${
-              isLiked 
-                ? 'text-indigo-600' 
-                : 'text-gray-600 hover:text-indigo-600'
-            }`}
-          >
-            <svg
-              className="w-5 h-5"
-              fill={isLiked ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-            <span>{likesCount}</span>
-          </button>
-
-          <div className="flex items-center space-x-1 text-gray-600">
-            <svg 
-              className="w-5 h-5" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" 
-              />
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" 
-              />
-            </svg>
-            <span>{viewCount}</span>
           </div>
 
-          <button
-            onClick={handleBookmark}
-            className={`flex items-center space-x-1 ${
-              isBookmarked 
-                ? 'text-indigo-600' 
-                : 'text-gray-600 hover:text-indigo-600'
-            }`}
-            aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
-          >
-            <svg
-              className="w-5 h-5"
-              fill={isBookmarked ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-              />
-            </svg>
-          </button>
+          {/* Post Content */}
+          <div className="p-6">
+            <div className="prose max-w-none mb-4">
+              {showSummary ? (
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-100 mb-2">AI Summary</h3>
+                    <p className="text-yellow-700 dark:text-yellow-200">{summary}</p>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                    <h3 className="text-lg font-semibold mb-2">Full Content</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{post.content}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowSummary(false)}
+                    className="text-yellow-500 hover:text-yellow-600 text-sm font-medium"
+                  >
+                    Hide Summary
+                  </button>
+                </div>
+              ) : (
+                <p className="text-gray-700 dark:text-gray-300">{post.content}</p>
+              )}
+            </div>
 
-          <div className="flex flex-wrap gap-2">
-            {post.tags && post.tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-sm"
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-4 mt-6">
+              <button
+                onClick={handleSummarize}
+                disabled={isSummarizing}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm border bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-100 border-yellow-300 dark:border-yellow-800 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {tag}
-              </span>
+                {isSummarizing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Summarizing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Summarize</span>
+                  </>
+                )}
+              </button>
+              {user && user.id === post.user_id && (
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="px-3 py-1.5 rounded-full text-sm border bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-3 py-1.5 rounded-full text-sm border bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-100 border-red-300 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </article>
+
+        {/* Comments Section */}
+        <section className="mt-8 bg-white dark:bg-[#111111] rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Comments</h2>
+          {user ? (
+            <form onSubmit={handleCommentSubmit} className="mb-6">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Write a comment..."
+                className="w-full p-4 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                rows="3"
+                required
+              />
+              <button
+                type="submit"
+                className="mt-4 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition-colors"
+              >
+                Post Comment
+              </button>
+            </form>
+          ) : (
+            <p className="mb-6 text-gray-600 dark:text-gray-400">
+              Please <button onClick={() => navigate('/login')} className="text-yellow-500 hover:text-yellow-600">login</button> to comment
+            </p>
+          )}
+
+          <div className="space-y-6">
+            {comments.map((comment) => (
+              <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-6">
+                <div className="flex items-center space-x-3 mb-3">
+                  <img
+                    src={comment.users.avatar_url || getDefaultAvatar(comment.users.username)}
+                    alt={comment.users.username}
+                    className="w-8 h-8 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
+                  />
+                  <div>
+                    <span className="text-[15px] text-gray-900 dark:text-white font-medium">
+                      {comment.users.username}
+                    </span>
+                    <p className="text-sm text-gray-500">
+                      {format(new Date(comment.created_at), 'MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300">{comment.content}</p>
+              </div>
             ))}
           </div>
-        </div>
-      </article>
+        </section>
+      </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Delete Post</h3>
-            <p className="mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
-            <div className="flex justify-end space-x-3">
+          <div className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Post</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete this post? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                disabled={isDeleteLoading}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
                 disabled={isDeleteLoading}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50"
               >
-                {isDeleteLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete'
-                )}
+                {isDeleteLoading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <section className="bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-2xl font-bold mb-4">Comments</h2>
-        {user ? (
-          <form onSubmit={handleCommentSubmit} className="mb-6">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="w-full p-2 border rounded-md mb-2"
-              rows="3"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-            >
-              Post Comment
-            </button>
-          </form>
-        ) : (
-          <p className="mb-6">
-            Please <button onClick={() => navigate('/login')} className="text-indigo-600 hover:underline">login</button> to comment
-          </p>
-        )}
-
-        <div className="space-y-4">
-          {comments.map((comment) => (
-            <div key={comment.id} className="border-b pb-4">
-              <div className="flex items-center text-gray-600 mb-2">
-                <div className="flex items-center">
-                  {comment.users.avatar_url ? (
-                    <img
-                      src={comment.users.avatar_url}
-                      alt={comment.users.username}
-                      className="w-8 h-8 rounded-full mr-2"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 flex items-center justify-center">
-                      <span className="text-gray-600 text-sm">
-                        {comment.users.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <span>{comment.users.username}</span>
-                </div>
-                <span className="mx-2">•</span>
-                <span>{new Date(comment.created_at).toLocaleDateString()}</span>
-              </div>
-              <p className="text-gray-800">{comment.content}</p>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   );
 };

@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -78,6 +82,28 @@ router.put('/profile', authenticateToken, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+
+router.get('/:userId/avatar', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('avatar_url')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user avatar:', error);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ avatar_url: user.avatar_url });
+  } catch (error) {
+    console.error('Error fetching user avatar:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}); 
 
 // Get user's posts
 router.get('/:id/posts', async (req, res) => {

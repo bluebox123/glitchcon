@@ -16,7 +16,7 @@ const FloatingActionButton = () => {
   return (
     <button
       onClick={() => navigate('/create-post')}
-      className="fixed bottom-8 right-8 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors duration-200 flex items-center justify-center group z-50"
+      className="fixed bottom-8 right-8 w-14 h-14 bg-yellow-500 hover:bg-yellow-600 rounded-full shadow-lg transition-colors duration-200 flex items-center justify-center group z-50"
       aria-label="Create new post"
     >
       <svg

@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
+import { format } from 'date-fns';
 
 const Home = () => {
+  const { user } = useAuth();
   const [allPosts, setAllPosts] = useState([]); // Store all fetched posts
   const [filteredPosts, setFilteredPosts] = useState([]); // Store filtered posts
   const [loading, setLoading] = useState(true);
@@ -13,7 +16,6 @@ const Home = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [sortOption, setSortOption] = useState('newest'); // Default sort by newest
   const [showFilters, setShowFilters] = useState(false);
-  const { user } = useAuth();
   const [copiedPostId, setCopiedPostId] = useState(null);
 
   const categories = [
@@ -36,10 +38,16 @@ const Home = () => {
   const fetchUsername = async (userId) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/users/${userId}`);
-      return response.data.username;
+      return {
+        username: response.data.username,
+        avatar_url: response.data.avatar_url
+      };
     } catch (error) {
       console.error('Error fetching username:', error);
-      return 'Unknown User';
+      return {
+        username: 'Unknown User',
+        avatar_url: null
+      };
     }
   };
 
@@ -161,15 +169,14 @@ const Home = () => {
     try {
       const { data: posts } = await axios.get(`${API_BASE_URL}/api/posts`);
       
-      // Fetch usernames for each post
-      const postsWithUsernames = await Promise.all(
+      // Fetch usernames and avatars for each post
+      const postsWithUserData = await Promise.all(
         posts.map(async (post) => {
-          let username = '';
+          let userData = { username: 'Unknown User', avatar_url: null };
           try {
-            username = await fetchUsername(post.user_id);
+            userData = await fetchUsername(post.user_id);
           } catch (error) {
-            console.error(`Error fetching username for post ${post.id}:`, error);
-            username = 'Unknown User';
+            console.error(`Error fetching user data for post ${post.id}:`, error);
           }
           
           // Fetch likes count for each post
@@ -192,15 +199,16 @@ const Home = () => {
           
           return {
             ...post,
-            username,
+            username: userData.username,
+            avatar_url: userData.avatar_url,
             likes_count: likesCount,
             view_count: viewCount
           };
         })
       );
       
-      setAllPosts(postsWithUsernames);
-      const filtered = applyFiltersAndSort(postsWithUsernames);
+      setAllPosts(postsWithUserData);
+      const filtered = applyFiltersAndSort(postsWithUserData);
       setFilteredPosts(filtered);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -222,18 +230,41 @@ const Home = () => {
     }
   }, [sortOption]);
 
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getDefaultAvatar = (username) => {
+    const defaultAvatars = [
+      '/woman.png',
+      '/woman (1).png',
+      '/man.png',
+      '/man (1).png',
+      '/man (2).png',
+      '/human.png'
+    ];
+    
+    // Use the username string to consistently pick the same avatar for the same user
+    const index = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % defaultAvatars.length;
+    return defaultAvatars[index];
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-100 px-4 py-3 rounded">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
       </div>
@@ -241,229 +272,135 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Blog</h1>
-          </div>
-        </div>
-      </header>
-
-      {/* Search and filter bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => {
-                // Small delay to allow clicking on suggestions
-                setTimeout(() => setShowSuggestions(false), 200);
-              }}
-              placeholder="Search by content, tags, categories, or author..."
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
-            />
-            {showSuggestions && (
-              <div className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => handleSearch(category.label)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    {category.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {/* Filter Button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors flex items-center space-x-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-              </svg>
-              <span>Filter & Sort</span>
-              <span className="ml-1 text-xs">({sortOptions.find(option => option.value === sortOption)?.label})</span>
-            </button>
-            
-            {showFilters && (
-              <div className="absolute right-0 z-10 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                <div className="p-2">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sort by</p>
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleSortChange(option.value)}
-                      className={`w-full text-left px-4 py-2 rounded-md mb-1 ${
-                        sortOption === option.value
-                          ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-100'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Filter Summary */}
-        {sortOption !== 'newest' && (
-          <div className="mt-4 text-sm flex items-center">
-            <span className="text-gray-500 dark:text-gray-400">Sorted by: </span>
-            <span className="ml-2 px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-100 rounded-full flex items-center">
-              {sortOptions.find(option => option.value === sortOption)?.label}
-              <button 
-                onClick={() => handleSortChange('newest')}
-                className="ml-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
+    <div className="relative">
+      {/* Hero Section */}
+      <div className="relative z-10 py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
+                Your Journey to Innovation
+              </span>
+              <br />
+              Begins Here
+            </h1>
+            <p className="text-gray-400 text-xl mb-8 max-w-2xl">
+              Welcome to Patrika, your gateway to a world where technology meets creativity. Share, learn, and connect with fellow innovators.
+            </p>
+            <div className="flex space-x-4">
+              <Link
+                to="/explore"
+                className="px-8 py-4 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-md transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </span>
+                Explore Posts
+              </Link>
+              {!user && (
+                <Link
+                  to="/signup"
+                  className="px-8 py-4 border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black font-semibold rounded-md transition-colors"
+                >
+                  Join Community
+                </Link>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Posts grid */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Posts Grid */}
+      <div className="container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPosts.map((post) => (
-            <Link
-              key={post.id}
-              to={`/post/${post.id}`}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300"
-            >
-              {/* Random gradient background for posts without images */}
-              <div className="h-48 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+          {filteredPosts
+            .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+            .slice(0, 9)
+            .map((post, index) => {
+              // Calculate opacity class based on which row the post is in
+              let opacityClass = '';
+              if (index >= 6) {
+                opacityClass = 'opacity-40';
+              } else if (index >= 3) {
+                opacityClass = 'opacity-70';
+              }
               
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(post.created_at).toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+              return (
+                <Link
+                  key={post.id}
+                  to={`/post/${post.id}`}
+                  className={`flex flex-col bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors duration-200 p-6 shadow-sm hover:shadow-md ${opacityClass}`}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-3">
+                      <img 
+                        src={post.avatar_url || getDefaultAvatar(post.username)} 
+                        alt={post.username}
+                        className="w-10 h-10 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[15px] text-gray-900 dark:text-white font-medium">{post.username || 'Anonymous'}</span>
+                        <span className="text-sm text-gray-500">
+                          {formatDate(post.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                    {post.categories && post.categories[0] && (
+                      <span className="px-3 py-1 text-sm bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 rounded-full">
+                        {post.categories[0]}
+                      </span>
+                    )}
                   </div>
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const url = `${window.location.origin}/post/${post.id}`;
-                      
-                      try {
-                        if (navigator.clipboard && window.isSecureContext) {
-                          await navigator.clipboard.writeText(url);
-                          setCopiedPostId(post.id);
-                          setTimeout(() => setCopiedPostId(null), 2000);
-                        } else {
-                          // Fallback for non-secure contexts
-                          const textarea = document.createElement('textarea');
-                          textarea.value = url;
-                          textarea.style.position = 'fixed';
-                          textarea.style.opacity = '0';
-                          document.body.appendChild(textarea);
-                          textarea.select();
-                          document.execCommand('copy');
-                          document.body.removeChild(textarea);
-                          setCopiedPostId(post.id);
-                          setTimeout(() => setCopiedPostId(null), 2000);
-                        }
-                      } catch (err) {
-                        console.error('Copy failed', err);
-                      }
-                    }}
-                    className="relative text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                    aria-label="Share post"
-                  >
-                    {copiedPostId === post.id ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 dark:text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
+
+                  {/* Content */}
+                  <div className="group">
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                      {searchQuery ? highlightText(post.title, searchQuery) : post.title}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400 text-[15px] leading-relaxed mb-6">
+                      {post.isContentMatch && searchQuery
+                        ? highlightText(createContentSnippet(post.content, searchQuery), searchQuery)
+                        : post.content.substring(0, 120) + '...'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-6 text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center space-x-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
-                    )}
-                    {copiedPostId === post.id && (
-                      <span className="absolute top-full right-0 mt-1 py-1 px-2 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 text-xs rounded-md whitespace-nowrap">
-                        Copied!
-                      </span>
-                    )}
-                  </button>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  {searchQuery ? highlightText(post.title, searchQuery) : post.title}
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
-                  {post.isContentMatch && searchQuery
-                    ? highlightText(createContentSnippet(post.content, searchQuery), searchQuery)
-                    : post.content.substring(0, 150) + (post.content.length > 150 ? '...' : '')}
-                </p>
-                
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex flex-wrap gap-2">
-                    {post.tags && post.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-100"
-                      >
-                        {searchQuery ? highlightText(tag, searchQuery) : tag}
-                      </span>
-                    ))}
+                      <span className="text-sm">{post.likes_count || 0}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      <span className="text-sm">{post.view_count || 0}</span>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
-                    <span className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-red-500 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                      </svg>
-                      {post.likes_count || 0}
-                    </span>
-                    
-                    <span className="flex items-center">
-                      <svg className="h-5 w-5 mr-1 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      {post.view_count || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-          
-          {filteredPosts.length === 0 && (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center py-16">
-              <p className="text-gray-600 dark:text-gray-400 text-lg">No posts found matching your criteria</p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSortOption('newest');
-                  applyFiltersAndSort(allPosts);
-                }}
-                className="mt-4 px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
-              >
-                Reset Filters
-              </button>
-            </div>
-          )}
+                </Link>
+              );
+            })}
         </div>
-      </main>
+      </div>
+
+      {/* Stats Section */}
+      <div className="border-t border-gray-800 py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-yellow-500 mb-2">300+</div>
+              <div className="text-gray-400">Active Users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-yellow-500 mb-2">1000+</div>
+              <div className="text-gray-400">Posts Created</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-yellow-500 mb-2">50+</div>
+              <div className="text-gray-400">Categories</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

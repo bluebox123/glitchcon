@@ -61,7 +61,7 @@ const ChatBot = () => {
       {/* Chat Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-[6.75rem] right-[2.0625rem] bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 z-50"
+        className="fixed bottom-[6.75rem] right-[2.0625rem] bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 z-50"
         aria-label="Chat with AI"
       >
         {isOpen ? (
